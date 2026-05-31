@@ -17,7 +17,11 @@ export class AuthService {
 	isAuthenticated = $derived(this.status === 'authenticated');
 	isUnauthenticated = $derived(this.status === 'unauthenticated');
 	isReady = $derived(this.status !== 'unknown');
-	user = $derived(this.pb.authStore.record);
+	// `authStore.record` is a plain PocketBase property, NOT a Svelte reactive
+	// source — a `$derived` reading it captures no dependency and freezes at its
+	// first value, so after logout→login the UI keeps showing the previous user.
+	// Bridge it into `$state` and push updates from `onChange`, same as `status`.
+	user = $state(this.pb?.authStore.record ?? null);
 
 	otpHandler = new AsyncHandler<{ otpId: string }>();
 	verifyHandler = new AsyncHandler();
@@ -33,6 +37,7 @@ export class AuthService {
 
 		pb.authStore.onChange(() => {
 			this.status = pb.authStore.isValid ? 'authenticated' : 'unauthenticated';
+			this.user = pb.authStore.record;
 			log.info('Auth status changed', { status: this.status });
 		});
 	}
