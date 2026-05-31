@@ -17,12 +17,10 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: oven-sh/setup-bun@v2
-        # bun 1.3.x rewrites bun.lockb → bun.lock, so --frozen-lockfile fails against the
-        # committed bun 1.1.x lockfile. Use plain bun install until the lockfile is regenerated
-        # and committed with the pinned bun version, then switch to --frozen-lockfile + bun-version.
 
       - name: Install dependencies
-        run: bun install
+        # Text bun.lock is committed (bun 1.3.x format), so installs are reproducible.
+        run: bun install --frozen-lockfile
 
       - name: Generate i18n (paraglide)
         # MUST run before build; pass 'apps/dx-viewer' to avoid creating a stray apps/web/ dir
