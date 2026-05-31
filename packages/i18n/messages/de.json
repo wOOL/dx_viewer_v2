@@ -1,5 +1,8 @@
 {
 	"app_name": "Be Certain",
+	"dx_update_available": "Eine neue Version ist verfügbar.",
+	"dx_update_reload": "Neu laden",
+	"dx_update_dismiss": "Schließen",
 	"loading": "Laden...",
 
 	"policy_title": "Datenschutzrichtlinie",
