@@ -1,0 +1,49 @@
+name: Build & deploy dx-viewer SPA
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        # bun 1.3.x rewrites bun.lockb → bun.lock, so --frozen-lockfile fails against the
+        # committed bun 1.1.x lockfile. Use plain bun install until the lockfile is regenerated
+        # and committed with the pinned bun version, then switch to --frozen-lockfile + bun-version.
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Generate i18n (paraglide)
+        # MUST run before build; pass 'apps/dx-viewer' to avoid creating a stray apps/web/ dir
+        run: bun scripts/regenerate-paraglide.mjs apps/dx-viewer
+
+      - name: Build
+        run: bun run build:dx-viewer
+        env:
+          VITE_POCKETBASE_URL: ${{ secrets.VITE_POCKETBASE_URL }}
+          VITE_SITE_KEY: ${{ secrets.VITE_SITE_KEY }}
+
+      - name: Set up SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -t ed25519 "${{ secrets.SSH_HOST }}" > ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Deploy to server
+        run: |
+          rsync -az --delete \
+            -e "ssh -i ~/.ssh/id_ed25519 -o UserKnownHostsFile=~/.ssh/known_hosts" \
+            apps/dx-viewer/build/ "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/var/www/dx-viewer-v2/"
