@@ -283,7 +283,12 @@
 								{m.dx_account_cancel_subscription()}
 							</BezelButton>
 						{/if}
-					{:else if !subscription.row || subscription.cancelAtPeriodEnd}
+					{:else}
+						<!-- Any non-active state (canceled, expired, past_due, unpaid, incomplete,
+						     paused) or a scheduled cancel: offer a route back to /billing so the user
+						     can re-subscribe. Previously this branch required `cancelAtPeriodEnd`, so a
+						     fully-canceled row (cancelAtPeriodEnd=false, statusKind='inactive') matched
+						     neither branch and rendered no button — a re-subscribe dead-end. -->
 						<BezelButton type="button" onclick={() => goto('/billing')}>{m.dx_account_view_plans()}</BezelButton>
 					{/if}
 				</div>
