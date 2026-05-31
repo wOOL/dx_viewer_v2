@@ -18,10 +18,13 @@ export class AuthService {
 	isUnauthenticated = $derived(this.status === 'unauthenticated');
 	isReady = $derived(this.status !== 'unknown');
 	// `authStore.record` is a plain PocketBase property, NOT a Svelte reactive
-	// source — a `$derived` reading it captures no dependency and freezes at its
-	// first value, so after logout→login the UI keeps showing the previous user.
-	// Bridge it into `$state` and push updates from `onChange`, same as `status`.
-	user = $state(this.pb?.authStore.record ?? null);
+	// source — a `$derived` reading it would capture no dependency and freeze at
+	// its first value. So we bridge it into `$state`. It is seeded in the
+	// constructor body, NOT here: class field initializers run *before* the
+	// constructor body, so `this.pb` is still undefined at this point and reading
+	// it would always yield null — which left reloaded sessions (token restored
+	// from localStorage, no onChange fired) rendering with a null user.
+	user = $state<PocketBase['authStore']['record']>(null);
 
 	otpHandler = new AsyncHandler<{ otpId: string }>();
 	verifyHandler = new AsyncHandler();
@@ -33,6 +36,11 @@ export class AuthService {
 	constructor(pb: PocketBase) {
 		this.pb = pb;
 		this.status = pb.authStore.isValid ? 'authenticated' : 'unauthenticated';
+		// Seed the user from the (possibly localStorage-restored) store. The SDK
+		// populates authStore silently on construction without firing onChange, so
+		// without this a reloaded session would show a null user until the next
+		// auth event. Updated again in onChange below for live login/logout.
+		this.user = pb.authStore.record;
 		log.info('AuthService initialised', { status: this.status });
 
 		pb.authStore.onChange(() => {
