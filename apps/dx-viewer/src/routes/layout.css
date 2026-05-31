@@ -1,0 +1,85 @@
+@import '@be-certain/ui/src/base.css';
+@plugin '@tailwindcss/typography';
+@plugin '@tailwindcss/forms';
+
+/* App-specific keyframes. Shared chrome lives in @be-certain/ui/base.css. */
+@keyframes pulse-subtle {
+	0%, 100% { opacity: 1; transform: scale(1); }
+	50% { opacity: 0.7; transform: scale(0.92); }
+}
+
+/*
+ * Print stylesheet — drives the "Export PDF" button in the 2D viewer.
+ * Hide all app chrome and surface only the .print-page block (rendered by
+ * Viewer2D), so the user gets a clean report + annotated X-ray when they
+ * "Save as PDF" from the browser's print dialog.
+ */
+@media print {
+	@page {
+		size: A4;
+		margin: 16mm;
+	}
+	html, body {
+		background: #fff !important;
+		color: #111 !important;
+	}
+	/* Everything that's not the print page is hidden. */
+	body * {
+		visibility: hidden;
+	}
+	.print-only,
+	.print-only * {
+		visibility: visible;
+	}
+	.print-only {
+		display: block !important;
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		background: #fff !important;
+		color: #111 !important;
+	}
+	.print-page {
+		padding: 0;
+	}
+	.print-page h1 {
+		font-size: 22pt;
+		font-weight: 600;
+		margin: 0 0 12pt;
+		color: #111;
+	}
+	.print-page .print-image-wrap {
+		text-align: center;
+		margin: 0 0 14pt;
+	}
+	.print-page .print-image-wrap img {
+		max-width: 100%;
+		max-height: 110mm;
+		object-fit: contain;
+		border: 1px solid #ddd;
+	}
+	.print-page .print-report {
+		font-size: 10.5pt;
+		line-height: 1.45;
+		color: #111;
+	}
+	/* Re-tone MarkdownReport's dark colours for print. */
+	.print-page .print-report :global(h1),
+	.print-page .print-report :global(h2),
+	.print-page .print-report :global(h3),
+	.print-page .print-report :global(h4) {
+		color: #111 !important;
+		page-break-after: avoid;
+	}
+	.print-page .print-report :global(p),
+	.print-page .print-report :global(li) {
+		color: #222 !important;
+	}
+	.print-page .print-report :global(strong) {
+		color: #000 !important;
+	}
+	/* Prevent orphaned headings. */
+	h1, h2, h3, h4 {
+		page-break-after: avoid;
+	}
+}

@@ -1,0 +1,872 @@
+openapi: 3.1.0
+info:
+  title: BeCertain PocketBase API
+  version: "0.1.0"
+  description: |
+    Frontend-facing API exposed by the BeCertain PocketBase instance.
+
+    Source of truth for this spec: `marketting-demo/dx-viewer/sources/PB_Backend.md`.
+    The frontend talks **only to PocketBase** — never directly to the AI inference service.
+
+    Categories:
+      - **Auth** — PocketBase built-in: email/password + OTP. OAuth and MFA currently disabled.
+      - **Consent** — privacy / terms acceptance.
+      - **Subscriptions** — Stripe-backed billing; gates the AI endpoints.
+      - **AI 2D** — `find_xray` (ROI) and `inference` (disease + anatomy + numbering).
+      - **AI 3D** — `cbct_seg_inference` (volume → zipped GLTF) and `ios_seg_inference` (mesh → GLB).
+
+servers:
+  - url: https://pbapi.becertain.ai
+    description: Production
+  - url: http://127.0.0.1:8099
+    description: Local PocketBase (proxied via nginx in prod)
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: auth
+    description: PocketBase native auth (email/password + OTP)
+  - name: consent
+    description: Terms-of-service / privacy policy consent
+  - name: collections
+    description: PocketBase collection records
+  - name: stripe
+    description: Stripe subscription management
+  - name: ai-2d
+    description: 2D X-ray analysis (paywalled)
+  - name: ai-3d
+    description: 3D CBCT / IOS segmentation (paywalled)
+
+paths:
+  # ─── Auth ────────────────────────────────────────────────────────────────────
+  /api/collections/users/auth-with-password:
+    post:
+      tags: [auth]
+      summary: Authenticate with email + password
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthWithPasswordRequest"
+      responses:
+        "200":
+          description: Authenticated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthResponse" }
+        "400": { $ref: "#/components/responses/AuthFailed" }
+
+  /api/collections/users/auth-with-otp:
+    post:
+      tags: [auth]
+      summary: Authenticate with OTP code (after request-otp)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthWithOtpRequest"
+      responses:
+        "200":
+          description: Authenticated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthResponse" }
+        "400": { $ref: "#/components/responses/AuthFailed" }
+
+  /api/collections/users/request-otp:
+    post:
+      tags: [auth]
+      summary: Request an email-delivered OTP
+      description: |
+        OTP is a 6-digit code valid for **180 seconds**.
+
+        When Turnstile is re-enabled (currently commented out in `main.pb.js`),
+        a `turnstileToken` field will be required in the request body.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RequestOtpRequest"
+      responses:
+        "200":
+          description: OTP generated and emailed
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [otpId]
+                properties:
+                  otpId:
+                    type: string
+                    description: Opaque ID to pair with the user-entered code
+
+  /api/collections/users/records:
+    post:
+      tags: [auth]
+      summary: Sign up a new user
+      description: |
+        Creates a user record. The `onRecordAfterCreateSuccess` hook implicitly
+        opts new users into the latest terms version.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SignupRequest" }
+      responses:
+        "200":
+          description: User created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+
+  /api/collections/users/request-password-reset:
+    post:
+      tags: [auth]
+      summary: Send a password-reset email
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+      responses:
+        "204": { description: Email queued (always — does not leak whether the address exists) }
+
+  /api/collections/users/auth-refresh:
+    post:
+      tags: [auth]
+      summary: Refresh the current JWT
+      responses:
+        "200":
+          description: Refreshed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  # ─── Consent ─────────────────────────────────────────────────────────────────
+  /api/consent/check:
+    post:
+      tags: [consent]
+      summary: Check whether the authed user is up-to-date with the latest terms
+      description: |
+        Returns the raw boolean `true` or `false` in the body. If no `terms` rows
+        exist at all, returns `true` (treated as "no consent needed").
+      responses:
+        "200":
+          description: Boolean result
+          content:
+            application/json:
+              schema:
+                type: boolean
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /api/consent/agree:
+    post:
+      tags: [consent]
+      summary: Record acceptance of the latest terms
+      responses:
+        "200":
+          description: Recorded (or already recorded)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, enum: [true] }
+        "400":
+          description: No terms published yet
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MessageError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500":
+          description: Internal failure
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MessageError" }
+
+  # ─── Collections ─────────────────────────────────────────────────────────────
+  /api/collections/subscriptions/records:
+    get:
+      tags: [collections]
+      summary: Read the current user's subscription row (listRule returns ≤ 1)
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: perPage
+          schema: { type: integer, default: 30 }
+      responses:
+        "200":
+          description: Paged list (will contain at most one row for the authed user)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  page: { type: integer }
+                  perPage: { type: integer }
+                  totalItems: { type: integer }
+                  totalPages: { type: integer }
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/Subscription" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  # ─── Stripe ──────────────────────────────────────────────────────────────────
+  /api/stripe/create-subscription:
+    post:
+      tags: [stripe]
+      summary: Create a Stripe subscription, returning a PaymentIntent client secret
+      description: |
+        Stripe is currently in **test mode** (`sk_test_…`). Production launch
+        requires key rotation. API version pinned to `2024-06-20`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [priceId]
+              properties:
+                priceId: { type: string, description: "Stripe price ID (e.g. price_...)" }
+      responses:
+        "200":
+          description: PaymentIntent client secret (or null for auto-activated subs)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  clientSecret:
+                    type: string
+                    nullable: true
+        "400":
+          description: Missing priceId
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StripeError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500":
+          description: Stripe error
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StripeError" }
+
+  /api/stripe/create-checkout-session:
+    post:
+      tags: [stripe]
+      summary: Create a Stripe Checkout session (redirect flow)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [priceId, returnUrl]
+              properties:
+                priceId: { type: string }
+                returnUrl: { type: string, format: uri }
+      responses:
+        "200":
+          description: Redirect URL + session ID
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [url, sessionId]
+                properties:
+                  url: { type: string, format: uri }
+                  sessionId: { type: string }
+        "400":
+          description: Missing priceId
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StripeError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /api/stripe/cancel-subscription:
+    post:
+      tags: [stripe]
+      summary: Schedule cancellation at the end of the current period
+      responses:
+        "200":
+          description: Cancellation scheduled
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [canceled]
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500":
+          description: Stripe error or no subscription
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StripeError" }
+
+  /api/stripe/plans:
+    get:
+      tags: [stripe]
+      summary: List active recurring Stripe prices
+      security: []
+      responses:
+        "200":
+          description: Normalized plan list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  plans:
+                    type: array
+                    items: { $ref: "#/components/schemas/StripePlan" }
+
+  # ─── AI 2D ───────────────────────────────────────────────────────────────────
+  /api/ai/find_xray:
+    post:
+      tags: [ai-2d]
+      summary: Locate an X-ray region in an arbitrary photo
+      description: |
+        Use this **before** `/api/ai/inference` when the input is a phone photo
+        of an X-ray monitor — crop to the returned ROI first.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/FindXrayRequest" }
+      responses:
+        "200":
+          description: ROI or null
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/XrayResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/PaywallError" }
+
+  /api/ai/inference:
+    post:
+      tags: [ai-2d]
+      summary: Full disease + anatomy + numbering inference on a cropped X-ray
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/InferenceRequest" }
+      responses:
+        "200":
+          description: Detection results + rendered visualizations
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AnalysisResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/PaywallError" }
+
+  # ─── AI 3D ───────────────────────────────────────────────────────────────────
+  /api/ai/cbct_seg_inference:
+    post:
+      tags: [ai-3d]
+      summary: Volumetric CBCT segmentation (NIfTI / NRRD / MHA / GIPL in → GLTF zip out)
+      description: |
+        Upstream timeout 300s. Returns a zip blob (`Content-Type: application/zip`).
+
+        Default zip contents: `pred_seg.gltf`.
+        With `meta_data.seg_only = false`: also `input_mesh.obj`.
+        With `meta_data.return_json = true`: `results.json` (3D RGB array `[H, W, D, 3]` uint8).
+
+        Frontend must NOT set the `Content-Type` header manually — let the browser pick the
+        multipart boundary.
+
+        **Known size limit (nginx `client_max_body_size`):** the edge proxy in front of PB
+        rejects uploads above a configured threshold with HTTP 413. CBCT volumes routinely
+        run 50–200 MB once gzipped, so this limit MUST be set high enough on production
+        deployments. Confirm the current value with the backend team — frontend cannot
+        derive it from the API.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [input_file]
+              properties:
+                input_file:
+                  type: string
+                  format: binary
+                  description: ".nii.gz / .nrrd / .mha / .gipl"
+                meta_data:
+                  type: string
+                  description: JSON-encoded CbctSegMetaData (string, not nested JSON)
+      responses:
+        "200":
+          description: results.zip
+          content:
+            application/zip:
+              schema:
+                type: string
+                format: binary
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/PaywallError" }
+        "413":
+          description: Payload too large — exceeds nginx `client_max_body_size`. The body is HTML from nginx, not JSON.
+        default:
+          description: Wrapped AI service error
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AiError" }
+
+  /api/ai/ios_seg_inference:
+    post:
+      tags: [ai-3d]
+      summary: Intra-oral scan (IOS) mesh segmentation (OBJ / STL / PLY in → GLB out)
+      description: |
+        Upstream timeout 300s. Returns a binary GLB blob
+        (`Content-Type: model/gltf-binary`).
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [input_file]
+              properties:
+                input_file:
+                  type: string
+                  format: binary
+                  description: ".obj / .stl / .ply"
+                meta_data:
+                  type: string
+                  description: JSON string; currently unused but accepted
+      responses:
+        "200":
+          description: results.glb
+          content:
+            model/gltf-binary:
+              schema:
+                type: string
+                format: binary
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/PaywallError" }
+        "413":
+          description: Payload too large — exceeds nginx `client_max_body_size`. The body is HTML from nginx, not JSON.
+        default:
+          description: Wrapped AI service error
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AiError" }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: PocketBase user JWT (NOT the AI service token).
+
+  responses:
+    Unauthorized:
+      description: Missing or invalid JWT
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/MessageError" }
+    AuthFailed:
+      description: Auth rejected
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/MessageError" }
+    ValidationError:
+      description: Validation failure (per-field)
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/PocketBaseFieldErrors" }
+    PaywallError:
+      description: |
+        Subscription gate. `message` is one of:
+        - `"No Subscription"`
+        - `"Inactive Subscription"`
+        - `"Subscription Expired (Renewal Pending)"`
+
+        See PB_Backend.md §3 for the exact rule (active|trialing AND currentPeriodEnd + 24h > now).
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/PaywallMessage" }
+
+  schemas:
+    # ─── Common errors ─────────────────────────────────────────────────────────
+    MessageError:
+      type: object
+      required: [message]
+      properties:
+        message: { type: string }
+
+    PaywallMessage:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+          enum:
+            - No Subscription
+            - Inactive Subscription
+            - Subscription Expired (Renewal Pending)
+
+    StripeError:
+      type: object
+      properties:
+        error: { type: string }
+
+    AiError:
+      type: object
+      properties:
+        message:
+          type: string
+          enum: [AI Error]
+        details: {}
+
+    PocketBaseFieldErrors:
+      type: object
+      properties:
+        code: { type: integer }
+        message: { type: string }
+        data:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              code: { type: string }
+              message: { type: string }
+
+    # ─── Auth ──────────────────────────────────────────────────────────────────
+    User:
+      type: object
+      required: [id, email]
+      properties:
+        id: { type: string }
+        email: { type: string, format: email }
+        name: { type: string }
+        avatar: { type: string, nullable: true }
+        address: { type: string }
+        mobile: { type: string }
+        created: { type: string, format: date-time }
+        updated: { type: string, format: date-time }
+        verified: { type: boolean }
+        emailVisibility: { type: boolean }
+
+    AuthResponse:
+      type: object
+      required: [token, record]
+      properties:
+        token: { type: string }
+        record: { $ref: "#/components/schemas/User" }
+
+    AuthWithPasswordRequest:
+      type: object
+      required: [identity, password]
+      properties:
+        identity: { type: string, description: "Email or username" }
+        password: { type: string }
+
+    AuthWithOtpRequest:
+      type: object
+      required: [otpId, password]
+      properties:
+        otpId: { type: string }
+        password: { type: string, description: "6-digit OTP code" }
+
+    RequestOtpRequest:
+      type: object
+      required: [email]
+      properties:
+        email: { type: string, format: email }
+        turnstileToken:
+          type: string
+          description: |
+            Required once Turnstile is re-enabled. Currently optional —
+            backend hook is commented out.
+
+    SignupRequest:
+      type: object
+      required: [email, password, passwordConfirm]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, minLength: 8 }
+        passwordConfirm: { type: string }
+        name: { type: string }
+        turnstileToken: { type: string }
+
+    # ─── Subscriptions ─────────────────────────────────────────────────────────
+    Subscription:
+      type: object
+      description: |
+        listRule = `user = @request.auth.id` → user can only see their own row.
+        clients cannot create/edit/delete directly (rules = null).
+      required: [id, user, status]
+      properties:
+        id: { type: string, maxLength: 15 }
+        user: { type: string, description: "User record id" }
+        stripeCustomerId: { type: string }
+        stripeSubscriptionId: { type: string }
+        status:
+          type: string
+          enum: [active, trialing, incomplete, incomplete_expired, past_due, canceled, unpaid, paused]
+          description: Stripe status verbatim
+        currentPeriodEnd:
+          type: string
+          format: date-time
+          description: From obj.current_period_end * 1000
+        cancelAtPeriodEnd: { type: boolean }
+        created: { type: string, format: date-time }
+        updated: { type: string, format: date-time }
+
+    StripePlan:
+      type: object
+      required: [id, currency, unitAmount, interval, productName, productId]
+      properties:
+        id: { type: string, description: "Stripe price id" }
+        currency: { type: string, description: "3-letter ISO code (lowercase)" }
+        unitAmount: { type: integer, description: "Smallest currency unit (cents)" }
+        interval:
+          type: string
+          enum: [day, week, month, year]
+        intervalCount: { type: integer }
+        productName: { type: string }
+        productId: { type: string }
+
+    # ─── 2D AI ─────────────────────────────────────────────────────────────────
+    XrayBoundingBox:
+      type: object
+      required: [x1, y1, x2, y2]
+      properties:
+        x1: { type: number }
+        y1: { type: number }
+        x2: { type: number }
+        y2: { type: number }
+
+    XrayExtra:
+      type: object
+      required: [xrayfound, score, width, height]
+      properties:
+        xrayfound: { type: boolean }
+        score: { type: number }
+        width: { type: number }
+        height: { type: number }
+
+    XrayResponse:
+      type: object
+      required: [result, extra]
+      properties:
+        result:
+          oneOf:
+            - { $ref: "#/components/schemas/XrayBoundingBox" }
+            - type: "null"
+        extra: { $ref: "#/components/schemas/XrayExtra" }
+
+    FindXrayRequest:
+      type: object
+      required: [image_data]
+      properties:
+        image_data:
+          type: string
+          description: Base64-encoded image, no data URI prefix
+        meta_data:
+          type: object
+          properties:
+            conf_thres:
+              type: number
+              default: 0.9
+              description: Background-class confidence threshold
+
+    InferenceMetaData:
+      type: object
+      properties:
+        ensure_dim:
+          type: boolean
+          description: Upscale so short edge ≥ 720 (box coords remain in original space)
+        disease_segment:
+          type: boolean
+          description: Include disease segmentation masks (SAM, +1–2s)
+        disease_meta_data:
+          type: object
+          properties:
+            conf_thres: { type: number }
+        number_meta_data:
+          type: object
+          properties:
+            conf_thres: { type: number }
+            fdi_number:
+              type: boolean
+              description: Use FDI numbering instead of Universal
+        anatomy_meta_data:
+          type: object
+          properties:
+            conf_thres: { type: number }
+        rule_meta_data:
+          type: object
+          properties:
+            segment_conf_thres: { type: number }
+            limit_dim: { type: integer }
+
+    InferenceRequest:
+      type: object
+      required: [image_data]
+      properties:
+        image_data:
+          type: string
+          description: Base64-encoded image, no data URI prefix
+        meta_data: { $ref: "#/components/schemas/InferenceMetaData" }
+
+    Mask:
+      type: object
+      description: RLE-encoded segmentation mask (COCO format)
+      required: [counts, size]
+      properties:
+        counts: { type: string }
+        size:
+          type: array
+          minItems: 2
+          maxItems: 2
+          items: { type: integer }
+
+    BBox:
+      type: array
+      description: "[x1, y1, x2, y2]"
+      minItems: 4
+      maxItems: 4
+      items: { type: number }
+
+    GenericDetectionResult:
+      type: object
+      required: [bboxes, labels, scores]
+      properties:
+        bboxes:
+          type: array
+          items: { $ref: "#/components/schemas/BBox" }
+        labels:
+          type: array
+          items: { type: integer }
+        masks:
+          type: array
+          items:
+            oneOf:
+              - { $ref: "#/components/schemas/Mask" }
+              - type: "null"
+        scores:
+          type: array
+          items: { type: number }
+
+    DiseaseDetectionResult:
+      $ref: "#/components/schemas/GenericDetectionResult"
+
+    AnatomyResult:
+      type: object
+      required: [result, extra]
+      properties:
+        result: { $ref: "#/components/schemas/GenericDetectionResult" }
+        extra:
+          type: object
+          required: [anomaly]
+          properties:
+            anomaly:
+              type: boolean
+              description: True if Enamel/Dentin/Root Dentin not found
+
+    DiseaseResult:
+      type: object
+      required: [result, extra]
+      properties:
+        result: { $ref: "#/components/schemas/DiseaseDetectionResult" }
+        extra:
+          type: object
+          properties:
+            bboxes_var:
+              type: array
+              items:
+                type: array
+                items: { type: number }
+            class_probs:
+              type: array
+              items:
+                type: array
+                items: { type: number }
+
+    NumberResult:
+      type: object
+      required: [result]
+      properties:
+        result:
+          type: object
+          required: [bboxes, labels, scores]
+          properties:
+            bboxes:
+              type: array
+              items: { $ref: "#/components/schemas/BBox" }
+            labels:
+              type: array
+              items: { type: integer }
+            scores:
+              type: array
+              items: { type: number }
+
+    InferenceExtra:
+      type: object
+      required: [anatomy_result, disease_result, number_result]
+      properties:
+        anatomy_result: { $ref: "#/components/schemas/AnatomyResult" }
+        disease_result: { $ref: "#/components/schemas/DiseaseResult" }
+        number_result: { $ref: "#/components/schemas/NumberResult" }
+
+    AnalysisResponse:
+      type: object
+      required: [detection, extra, report, segmentation, tooth_numbers]
+      properties:
+        detection:
+          type: string
+          description: Base64 PNG — disease overlay visualization
+        tooth_numbers:
+          type: string
+          description: Base64 PNG — tooth numbering visualization
+        segmentation:
+          type: string
+          description: Base64 PNG — anatomy segmentation visualization
+        report:
+          type: string
+          description: Markdown-formatted findings report
+        extra: { $ref: "#/components/schemas/InferenceExtra" }
+
+    # ─── 3D AI ─────────────────────────────────────────────────────────────────
+    CbctSegMetaData:
+      type: object
+      description: |
+        JSON-encoded as a STRING in the multipart form field `meta_data`
+        (not a nested object).
+      properties:
+        seg_only:
+          type: boolean
+          default: true
+          description: If false, returned zip also includes `input_mesh.obj`
+        return_json:
+          type: boolean
+          default: false
+          description: If true, returned zip contains `results.json` (3D RGB array) instead of `pred_seg.gltf`
+
+    IosSegMetaData:
+      type: object
+      description: Currently unused but accepted; reserved for future options
+      additionalProperties: true

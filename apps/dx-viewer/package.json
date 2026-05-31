@@ -1,0 +1,37 @@
+{
+	"name": "@be-certain/dx-viewer",
+	"version": "0.0.1",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"dev": "vite dev",
+		"build": "vite build",
+		"preview": "vite preview",
+		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+		"lint": "eslint ."
+	},
+	"dependencies": {
+		"@be-certain/core": "workspace:*",
+		"@be-certain/i18n": "workspace:*",
+		"@be-certain/imaging-3d": "workspace:*",
+		"@be-certain/pb-openapi": "workspace:*",
+		"@be-certain/ui": "workspace:*",
+		"dompurify": "^3.2.0",
+		"marked": "^14.1.0",
+		"pocketbase": "^0.25.0"
+	},
+	"devDependencies": {
+		"@inlang/paraglide-sveltekit": "^0.15.0",
+		"@sveltejs/adapter-static": "^3.0.0",
+		"@sveltejs/kit": "^2.15.0",
+		"@sveltejs/vite-plugin-svelte": "^5.0.0",
+		"@tailwindcss/forms": "^0.5.0",
+		"@tailwindcss/typography": "^0.5.0",
+		"@tailwindcss/vite": "^4.0.0",
+		"svelte": "^5.0.0",
+		"svelte-check": "^4.0.0",
+		"tailwindcss": "^4.0.0",
+		"typescript": "^5.7.0",
+		"vite": "^6.0.0"
+	}
+}

@@ -1,0 +1,9 @@
+{
+  "name": "@be-certain/tsconfig",
+  "version": "0.0.0",
+  "private": true,
+  "exports": {
+    "./svelte.json": "./svelte.json",
+    "./library.json": "./library.json"
+  }
+}

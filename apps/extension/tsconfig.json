@@ -1,0 +1,30 @@
+{
+    "extends": "../../packages/tsconfig/svelte.json",
+    "compilerOptions": {
+        "allowJs": true,
+        "noEmit": true,
+        "types": [
+            "vite/client",
+            "chrome"
+        ],
+        "paths": {
+            "@adapters": [
+                "./src/adapters"
+            ],
+            "@adapters/*": [
+                "./src/adapters/*"
+            ]
+        }
+    },
+    "include": [
+        "src/**/*.ts",
+        "src/**/*.js",
+        "src/**/*.svelte",
+        "src/**/*.svelte.ts"
+    ],
+    "exclude": [
+        "node_modules",
+        "dist",
+        "src/lib/paraglide"
+    ]
+}

@@ -1,0 +1,30 @@
+{
+	"name": "be-certain",
+	"private": true,
+	"packageManager": "bun@1.1.1",
+	"workspaces": [
+		"apps/*",
+		"packages/*"
+	],
+	"scripts": {
+		"dev:web": "turbo run dev --filter=@be-certain/web",
+		"dev:ext": "turbo run dev --filter=@be-certain/extension",
+		"dev:desktop": "turbo run dev --filter=@be-certain/desktop",
+		"dev:dx-viewer": "turbo run dev --filter=@be-certain/dx-viewer",
+		"build:all": "turbo run build",
+		"build:web": "turbo run build --filter=@be-certain/web",
+		"build:desktop": "turbo run build --filter=@be-certain/desktop",
+		"build:ext": "turbo run build --filter=@be-certain/extension",
+		"build:dx-viewer": "turbo run build --filter=@be-certain/dx-viewer",
+		"check": "turbo run check",
+		"lint": "turbo run lint",
+		"format": "prettier --write \"**/*.{ts,svelte,json,css,html}\""
+	},
+	"devDependencies": {
+		"prettier": "^3.0.0",
+		"prettier-plugin-svelte": "^3.0.0",
+		"prettier-plugin-tailwindcss": "^0.5.0",
+		"turbo": "^2.0.0",
+		"typescript": "^5.0.0"
+	}
+}

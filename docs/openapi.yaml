@@ -1,0 +1,335 @@
+openapi: 3.0.3
+info:
+  title: Dental Radiograph Analysis API
+  description: API for detecting and analyzing anatomy, diseases, and tooth numbers in dental radiographs, including pre-inference X-ray localization.
+  version: 1.0.0
+paths:
+  /api/ai/find_xray:
+    post:
+      summary: Locate X-ray within an image
+      description: Identifies and locates the boundaries of a dental X-ray ROI within a larger uploaded image.
+      requestBody:
+        description: Payload containing the base64 encoded image and localization configuration.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FindXrayRequest'
+      responses:
+        '200':
+          description: Successful localization response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FindXrayResponse'
+
+  /api/ai/inference:
+    post:
+      summary: Analyze a dental radiograph
+      description: Returns bounding boxes, masks, classifications, and a generated report for dental imagery.
+      requestBody:
+        description: Payload containing the base64 encoded image and inference configuration parameters.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnalysisRequest'
+      responses:
+        '200':
+          description: Successful analysis response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalysisResponse'
+
+components:
+  schemas:
+    # --- Request Schemas ---
+    FindXrayRequest:
+      type: object
+      required:
+        - image_data
+      properties:
+        image_data:
+          type: string
+          format: byte
+          description: Base64 encoded image data potentially containing an X-ray.
+        meta_data:
+          $ref: '#/components/schemas/FindXrayMetaDataConfig'
+
+    AnalysisRequest:
+      type: object
+      required:
+        - image_data
+      properties:
+        image_data:
+          type: string
+          format: byte
+          description: Base64 encoded image data of the localized dental radiograph.
+        meta_data:
+          $ref: '#/components/schemas/InferenceMetaData'
+
+    # --- Configuration Schemas ---
+    FindXrayMetaDataConfig:
+      type: object
+      properties:
+        conf_thres:
+          type: number
+          format: float
+          default: 0.9
+          description: Background class confidence threshold for ROI model.
+
+    InferenceMetaData:
+      type: object
+      properties:
+        ensure_dim:
+          type: boolean
+          default: true
+          description: Ensure the image short edge is >= 720 for better visualization. Set to false to disable resizing of input. Returned coordinates are based on original image dimensions.
+        disease_segment:
+          type: boolean
+          default: true
+          description: Perform disease segmentation with the SAM model (takes ~1-2 seconds).
+        disease_meta_data:
+          $ref: '#/components/schemas/ThresholdConfig'
+        number_meta_data:
+          $ref: '#/components/schemas/NumberMetaDataConfig'
+        anatomy_meta_data:
+          $ref: '#/components/schemas/ThresholdConfig'
+        rule_meta_data:
+          $ref: '#/components/schemas/RuleMetaDataConfig'
+
+    ThresholdConfig:
+      type: object
+      properties:
+        conf_thres:
+          type: number
+          format: float
+          default: 0.3
+          description: Confidence threshold for detection.
+
+    NumberMetaDataConfig:
+      type: object
+      properties:
+        conf_thres:
+          type: number
+          format: float
+          default: 0.1
+          description: Confidence threshold for tooth number detection.
+        fdi_number:
+          type: boolean
+          default: false
+          description: Flag to use the FDI numbering system instead of the universal system.
+
+    RuleMetaDataConfig:
+      type: object
+      properties:
+        segment_conf_thres:
+          type: number
+          format: float
+          default: 0.3
+          description: Confidence threshold for tooth anatomy segmentation.
+        limit_dim:
+          type: integer
+          default: 720
+          description: Ensure the image short edge is <= limit_dim to speed up post-processing.
+
+    # --- Response Schemas ---
+    FindXrayResponse:
+      type: object
+      description: Response containing the location and metadata of the detected X-ray.
+      properties:
+        result:
+          type: object
+          nullable: true
+          description: Bounding box coordinates of the detected X-ray. Null if no X-ray is found.
+          properties:
+            x1:
+              type: number
+              format: float
+            y1:
+              type: number
+              format: float
+            x2:
+              type: number
+              format: float
+            y2:
+              type: number
+              format: float
+        extra:
+          type: object
+          properties:
+            xrayfound:
+              type: boolean
+              description: Flag for whether an X-ray is detected.
+            score:
+              type: number
+              format: float
+              description: Model confidence of the prediction.
+            width:
+              type: integer
+              description: Width of the input image.
+            height:
+              type: integer
+              description: Height of the input image.
+
+    AnalysisResponse:
+      type: object
+      properties:
+        detection:
+          type: string
+          format: byte
+          description: Base64 encoded image showing general detections.
+        extra:
+          $ref: '#/components/schemas/ExtraData'
+        report:
+          type: string
+          description: Markdown formatted diagnostic report.
+        segmentation:
+          type: string
+          format: byte
+          description: Base64 encoded image showing semantic segmentation.
+        tooth_numbers:
+          type: string
+          format: byte
+          description: Base64 encoded image showing detected tooth numbers.
+
+    ExtraData:
+      type: object
+      properties:
+        anatomy_result:
+          $ref: '#/components/schemas/AnatomyResult'
+        disease_result:
+          $ref: '#/components/schemas/DiseaseResult'
+        number_result:
+          $ref: '#/components/schemas/NumberResult'
+
+    AnatomyResult:
+      type: object
+      properties:
+        extra:
+          type: object
+          properties:
+            anomaly:
+              type: boolean
+              description: Flag to indicate if enamel/dentin/root dentin is not found.
+        result:
+          $ref: '#/components/schemas/GenericDetectionResult'
+
+    DiseaseResult:
+      type: object
+      properties:
+        extra:
+          type: object
+          properties:
+            bboxes_var:
+              type: array
+              description: N x 4 array of float for x1, y1, x2, y2 bounding box variances.
+              items:
+                type: array
+                items:
+                  type: number
+                  format: float
+            class_probs:
+              type: array
+              description: N x (n_classes) array of full class probabilities.
+              items:
+                type: array
+                items:
+                  type: number
+                  format: float
+        result:
+          $ref: '#/components/schemas/DiseaseDetectionResult'
+
+    NumberResult:
+      type: object
+      properties:
+        result:
+          type: object
+          properties:
+            bboxes:
+              type: array
+              description: Array of bounding boxes [x_min, y_min, x_max, y_max].
+              items:
+                type: array
+                items:
+                  type: number
+                  format: float
+            labels:
+              type: array
+              items:
+                type: integer
+            scores:
+              type: array
+              items:
+                type: number
+                format: float
+
+    GenericDetectionResult:
+      type: object
+      properties:
+        bboxes:
+          type: array
+          description: Array of float bounding boxes [x_min, y_min, x_max, y_max].
+          items:
+            type: array
+            items:
+              type: number
+              format: float
+        labels:
+          type: array
+          items:
+            type: integer
+        masks:
+          type: array
+          description: Array of RLE encoded masks.
+          items:
+            allOf:
+              - $ref: '#/components/schemas/Mask'
+            nullable: true
+        scores:
+          type: array
+          items:
+            type: number
+            format: float
+
+    DiseaseDetectionResult:
+      type: object
+      properties:
+        bboxes:
+          type: array
+          description: Array of float bounding boxes [x_min, y_min, x_max, y_max].
+          items:
+            type: array
+            items:
+              type: number
+              format: float
+        labels:
+          type: array
+          description: Array of integer class IDs.
+          items:
+            type: integer
+            description: |
+              0: Dental Caries (Grade 1: Outer Enamel)
+              1: Dental Caries (Grade 2: Inner Enamel)
+              2: Dental Caries (Grade 3: Outer Dentin)
+              3: Dental Caries (Grade 4: Middle Dentin)
+              4: Dental Caries (Grade 5: Inner Dentin)
+              5: Bone Loss (Stage 1: <15%)
+              6: Bone Loss (Stage 2: Coronal Third)
+              7: Bone Loss (Stage 3: Mid Third)
+              8: Bone Loss (Stage 4: Apical Third)
+              9: Calculus
+              10: Periapical Radiolucency
+              11: Internal Resorption
+              12: External Resorption
+              13: Restoration Radiolucency (Adhesive/Liner)
+              14: Open Margin
+              15: Remaining Root
+              16: Missing Coronal Restoration
+              17: Unsure
+              18: Overhang
+              19: Other
+        masks:
+          type: array
+          description: Array of RLE encoded masks, or null for diseases that are not segmented (e.g., bone

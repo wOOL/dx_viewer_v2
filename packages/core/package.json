@@ -1,0 +1,72 @@
+{
+	"name": "@be-certain/core",
+	"version": "0.0.1",
+	"private": true,
+	"type": "module",
+	"svelte": "./src/index.ts",
+	"types": "./src/index.ts",
+	"exports": {
+		".": {
+			"types": "./src/index.ts",
+			"svelte": "./src/index.ts",
+			"default": "./src/index.ts"
+		},
+		"./api": {
+			"types": "./src/api/index.ts",
+			"svelte": "./src/api/index.ts",
+			"default": "./src/api/index.ts"
+		},
+		"./types": {
+			"types": "./src/types/index.ts",
+			"default": "./src/types/index.ts"
+		},
+		"./validation": {
+			"types": "./src/validation/index.ts",
+			"default": "./src/validation/index.ts"
+		},
+		"./utils": {
+			"types": "./src/utils/index.ts",
+			"default": "./src/utils/index.ts"
+		},
+		"./async": {
+			"types": "./src/async/index.ts",
+			"svelte": "./src/async/index.ts",
+			"default": "./src/async/index.ts"
+		},
+		"./auth": {
+			"types": "./src/auth/index.ts",
+			"svelte": "./src/auth/index.ts",
+			"default": "./src/auth/index.ts"
+		},
+		"./errors": {
+			"types": "./src/errors/index.ts",
+			"default": "./src/errors/index.ts"
+		},
+		"./logger": {
+			"types": "./src/logger/index.ts",
+			"svelte": "./src/logger/index.ts",
+			"default": "./src/logger/index.ts"
+		},
+		"./subscription": {
+			"types": "./src/subscription/index.ts",
+			"svelte": "./src/subscription/index.ts",
+			"default": "./src/subscription/index.ts"
+		},
+		"./use-cases": {
+			"types": "./src/use-cases/index.ts",
+			"svelte": "./src/use-cases/index.ts",
+			"default": "./src/use-cases/index.ts"
+		}
+	},
+	"dependencies": {
+		"@be-certain/pb-openapi": "workspace:*",
+		"pocketbase": "^0.25.0"
+	},
+	"peerDependencies": {
+		"svelte": "^5.0.0"
+	},
+	"devDependencies": {
+		"svelte": "^5.0.0",
+		"typescript": "^5.7.0"
+	}
+}

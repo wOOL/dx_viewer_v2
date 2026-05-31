@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>DentaView — Radiograph + Upload</title>
+		<link rel="stylesheet" href="./styles.css" />
+	</head>
+	<body>
+		<div class="app">
+			<header class="topbar">
+				<div class="topbar-brand">
+					<div class="topbar-logo">D</div>
+					<span class="topbar-title">DentaView</span>
+				</div>
+				<div class="topbar-meta">
+					<span class="topbar-badge"><span class="topbar-dot"></span> Connected</span>
+					<span>Patient #10482</span>
+					<span>Dr. Sarah Chen</span>
+				</div>
+			</header>
+
+			<main class="main main--sidebar">
+				<div class="panel">
+					<div class="panel-header">
+						<span class="panel-title">Radiograph Viewer</span>
+						<div class="panel-actions">
+							<button class="btn">↻ Reset</button>
+							<button class="btn">⊞ Full Screen</button>
+						</div>
+					</div>
+					<div class="viewer">
+						<img id="xray-image" alt="Panoramic radiograph" src="./test-image.jpg" />
+					</div>
+				</div>
+
+				<div class="sidebar">
+					<div class="sidebar-section">
+						<dl>
+							<div class="info-row">
+								<dt>Patient</dt>
+								<dd>James Morrison</dd>
+							</div>
+							<div class="info-row">
+								<dt>DOB</dt>
+								<dd>1987-04-12</dd>
+							</div>
+							<div class="info-row">
+								<dt>Acquired</dt>
+								<dd>2026-03-04</dd>
+							</div>
+						</dl>
+					</div>
+
+					<div class="sidebar-section">
+						<span class="sidebar-label">Report Export</span>
+						<div class="upload-zone" onclick="document.getElementById('file-upload').click()">
+							<div class="upload-icon">↑</div>
+							<div class="upload-text"><strong>Choose file</strong> or drag here</div>
+							<div class="upload-hint">.json, .pdf accepted</div>
+						</div>
+						<input type="file" id="file-upload" accept=".json,.pdf" />
+						<div class="file-list" id="file-list"></div>
+					</div>
+				</div>
+			</main>
+
+			<footer class="statusbar">
+				<div class="statusbar-group">
+					<span>DentaView v3.2.1</span>
+					<span>Test PMS — Image + Upload</span>
+				</div>
+				<div class="statusbar-group">
+					<span>Image + Upload</span>
+				</div>
+			</footer>
+		</div>
+
+		<script src="./upload-viewer.js"></script>
+	</body>
+</html>

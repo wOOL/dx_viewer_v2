@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+.svelte-kit/
+dist-electron/
+
+# Environment
+.env
+*.env
+*/.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# Turbo
+.turbo/
+
+# POC reference (not part of production build)
+apps/be-certain-poc/
+be-certain-poc/
+
+# Paraglide compiled output
+**/src/lib/paraglide/
+CLAUDE.md
+.claude/

@@ -1,0 +1,54 @@
+{
+	"name": "@be-certain/imaging-3d",
+	"version": "0.0.1",
+	"private": true,
+	"type": "module",
+	"svelte": "./src/index.ts",
+	"types": "./src/index.ts",
+	"exports": {
+		".": {
+			"types": "./src/index.ts",
+			"svelte": "./src/index.ts",
+			"default": "./src/index.ts"
+		},
+		"./types": {
+			"types": "./src/types/index.ts",
+			"default": "./src/types/index.ts"
+		},
+		"./loaders": {
+			"types": "./src/loaders/index.ts",
+			"default": "./src/loaders/index.ts"
+		},
+		"./parsers": {
+			"types": "./src/parsers/index.ts",
+			"default": "./src/parsers/index.ts"
+		},
+		"./session": {
+			"types": "./src/session/index.ts",
+			"default": "./src/session/index.ts"
+		},
+		"./labels": {
+			"types": "./src/labels/index.ts",
+			"default": "./src/labels/index.ts"
+		},
+		"./svelte": {
+			"types": "./src/svelte/use-3d-session.svelte.ts",
+			"svelte": "./src/svelte/use-3d-session.svelte.ts",
+			"default": "./src/svelte/use-3d-session.svelte.ts"
+		}
+	},
+	"dependencies": {
+		"@be-certain/core": "workspace:*",
+		"@kitware/vtk.js": "^32.7.0",
+		"fflate": "^0.8.2",
+		"pako": "^2.1.0"
+	},
+	"peerDependencies": {
+		"svelte": "^5.0.0"
+	},
+	"devDependencies": {
+		"@types/pako": "^2.0.3",
+		"svelte": "^5.0.0",
+		"typescript": "^5.7.0"
+	}
+}

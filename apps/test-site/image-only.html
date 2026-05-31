@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>DentaView — Radiograph Viewer</title>
+		<link rel="stylesheet" href="./styles.css" />
+	</head>
+	<body>
+		<div class="app">
+			<header class="topbar">
+				<div class="topbar-brand">
+					<div class="topbar-logo">D</div>
+					<span class="topbar-title">DentaView</span>
+				</div>
+				<div class="topbar-meta">
+					<span class="topbar-badge"><span class="topbar-dot"></span> Connected</span>
+					<span>Patient #10482</span>
+					<span>Dr. Sarah Chen</span>
+				</div>
+			</header>
+
+			<main class="main">
+				<div class="panel">
+					<div class="panel-header">
+						<span class="panel-title">Radiograph Viewer</span>
+						<div class="panel-actions">
+							<button class="btn">↻ Reset</button>
+							<button class="btn">⊞ Full Screen</button>
+						</div>
+					</div>
+					<div class="viewer">
+						<img id="xray-image" alt="Panoramic radiograph" src="./test-image.jpg" />
+					</div>
+				</div>
+			</main>
+
+			<footer class="statusbar">
+				<div class="statusbar-group">
+					<span>DentaView v3.2.1</span>
+					<span>Test PMS — Image Only</span>
+				</div>
+				<div class="statusbar-group">
+					<span>Image replacement only</span>
+				</div>
+			</footer>
+		</div>
+	</body>
+</html>
