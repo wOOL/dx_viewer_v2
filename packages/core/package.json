@@ -3,6 +3,7 @@
 	"version": "0.0.1",
 	"private": true,
 	"type": "module",
+	"description": "PocketBase client + AI API + auth/prefs stores + shared types & constants (extracted from the dx-viewer app; consumed source-form via the svelte export condition).",
 	"svelte": "./src/index.ts",
 	"types": "./src/index.ts",
 	"exports": {
@@ -11,62 +12,65 @@
 			"svelte": "./src/index.ts",
 			"default": "./src/index.ts"
 		},
-		"./api": {
-			"types": "./src/api/index.ts",
-			"svelte": "./src/api/index.ts",
-			"default": "./src/api/index.ts"
+		"./pb": {
+			"types": "./src/pb.ts",
+			"svelte": "./src/pb.ts",
+			"default": "./src/pb.ts"
+		},
+		"./ai": {
+			"types": "./src/ai.ts",
+			"svelte": "./src/ai.ts",
+			"default": "./src/ai.ts"
 		},
 		"./types": {
-			"types": "./src/types/index.ts",
-			"default": "./src/types/index.ts"
+			"types": "./src/types.ts",
+			"default": "./src/types.ts"
 		},
-		"./validation": {
-			"types": "./src/validation/index.ts",
-			"default": "./src/validation/index.ts"
+		"./constants": {
+			"types": "./src/constants.ts",
+			"svelte": "./src/constants.ts",
+			"default": "./src/constants.ts"
 		},
-		"./utils": {
-			"types": "./src/utils/index.ts",
-			"default": "./src/utils/index.ts"
+		"./image": {
+			"types": "./src/image.ts",
+			"default": "./src/image.ts"
 		},
-		"./async": {
-			"types": "./src/async/index.ts",
-			"svelte": "./src/async/index.ts",
-			"default": "./src/async/index.ts"
+		"./url": {
+			"types": "./src/url.ts",
+			"default": "./src/url.ts"
 		},
-		"./auth": {
-			"types": "./src/auth/index.ts",
-			"svelte": "./src/auth/index.ts",
-			"default": "./src/auth/index.ts"
-		},
-		"./errors": {
-			"types": "./src/errors/index.ts",
-			"default": "./src/errors/index.ts"
+		"./prefs": {
+			"types": "./src/prefs.ts",
+			"default": "./src/prefs.ts"
 		},
 		"./logger": {
-			"types": "./src/logger/index.ts",
-			"svelte": "./src/logger/index.ts",
-			"default": "./src/logger/index.ts"
+			"types": "./src/logger.ts",
+			"default": "./src/logger.ts"
 		},
-		"./subscription": {
-			"types": "./src/subscription/index.ts",
-			"svelte": "./src/subscription/index.ts",
-			"default": "./src/subscription/index.ts"
+		"./errors": {
+			"types": "./src/errors.ts",
+			"default": "./src/errors.ts"
 		},
-		"./use-cases": {
-			"types": "./src/use-cases/index.ts",
-			"svelte": "./src/use-cases/index.ts",
-			"default": "./src/use-cases/index.ts"
+		"./stores/auth": {
+			"types": "./src/stores/auth.svelte.ts",
+			"svelte": "./src/stores/auth.svelte.ts",
+			"default": "./src/stores/auth.svelte.ts"
+		},
+		"./stores/prefs": {
+			"types": "./src/stores/prefs.svelte.ts",
+			"svelte": "./src/stores/prefs.svelte.ts",
+			"default": "./src/stores/prefs.svelte.ts"
 		}
 	},
 	"dependencies": {
-		"@be-certain/pb-openapi": "workspace:*",
-		"pocketbase": "^0.25.0"
+		"pocketbase": "^0.26.9",
+		"svelte-i18n": "^4.0.1"
 	},
 	"peerDependencies": {
 		"svelte": "^5.0.0"
 	},
 	"devDependencies": {
-		"svelte": "^5.0.0",
-		"typescript": "^5.7.0"
+		"svelte": "^5.55.2",
+		"typescript": "^6.0.2"
 	}
 }

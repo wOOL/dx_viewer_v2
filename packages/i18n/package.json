@@ -1,6 +1,27 @@
 {
-  "name": "@be-certain/i18n",
-  "version": "0.0.1",
-  "private": true,
-  "type": "module"
+	"name": "@be-certain/i18n",
+	"version": "0.0.1",
+	"private": true,
+	"type": "module",
+	"description": "svelte-i18n initialisation + en/fr/es/de catalogs with a lock-step parity test (extracted from the dx-viewer app).",
+	"svelte": "./src/index.ts",
+	"types": "./src/index.ts",
+	"exports": {
+		".": {
+			"types": "./src/index.ts",
+			"svelte": "./src/index.ts",
+			"default": "./src/index.ts"
+		},
+		"./locales/*": "./src/locales/*"
+	},
+	"dependencies": {
+		"svelte-i18n": "^4.0.1"
+	},
+	"peerDependencies": {
+		"svelte": "^5.0.0"
+	},
+	"devDependencies": {
+		"svelte": "^5.55.2",
+		"typescript": "^6.0.2"
+	}
 }

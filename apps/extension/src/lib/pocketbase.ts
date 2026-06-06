@@ -1,30 +1,20 @@
 import { logger } from '@be-certain/core/logger';
-import PocketBase, { type AuthRecord } from 'pocketbase';
+import { pb } from '@be-certain/core/pb';
 
 const STORAGE_KEY = 'pb_auth';
 const log = logger.scoped('ext-pb');
 
 /**
- * Creates a PocketBase client for the extension that persists
- * its auth state to chrome.storage.local.
+ * Wire the SHARED core PocketBase singleton (`@be-certain/core/pb`) up for the
+ * extension environment: persist auth changes to chrome.storage.local instead of
+ * cookies/localStorage (service workers have neither). Core's `apiFetch`/`ai`
+ * helpers read `pb.authStore.token` off the same singleton, so once auth is
+ * restored here every AI call is authenticated with no further plumbing.
  *
- * Call `await restoreAuth(pb)` after creating to hydrate from storage.
+ * Call once at service-worker startup, then `await restoreAuth()`.
  */
-export function createExtensionPBClient(url: string, siteKey?: string): PocketBase {
-	log.info('Creating extension PB client', { url, hasSiteKey: !!siteKey });
-	const pb = new PocketBase(url);
-
-	if (siteKey) {
-		pb.beforeSend = function (_url, reqOptions) {
-			reqOptions.headers = {
-				...reqOptions.headers,
-				'X-Site-Key': siteKey
-			};
-			return { url: _url, options: reqOptions };
-		};
-	}
-
-	// Persist auth changes to chrome.storage.local
+export function initExtensionAuthPersistence(): void {
+	log.info('Initialising extension auth persistence');
 	pb.authStore.onChange(() => {
 		if (pb.authStore.isValid) {
 			log.debug('Auth persisted to storage');
@@ -39,20 +29,19 @@ export function createExtensionPBClient(url: string, siteKey?: string): PocketBa
 			chrome.storage.local.remove(STORAGE_KEY);
 		}
 	});
-
-	return pb;
 }
 
 /**
- * Restore auth state from chrome.storage.local into the PB client.
+ * Restore auth state from chrome.storage.local into the shared PB client.
  * Returns true if a valid session was restored.
  */
-export async function restoreAuth(pb: PocketBase): Promise<boolean> {
+export async function restoreAuth(): Promise<boolean> {
 	const result = await chrome.storage.local.get(STORAGE_KEY);
 	const stored = result[STORAGE_KEY] as Record<string, unknown> | undefined;
 
 	if (stored && typeof stored.token === 'string' && stored.token.length > 0) {
-		pb.authStore.save(stored.token, stored.model as AuthRecord);
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		pb.authStore.save(stored.token, stored.model as any);
 		log.info('Auth restored from storage', { valid: pb.authStore.isValid });
 		return pb.authStore.isValid;
 	}
@@ -65,3 +54,5 @@ export async function restoreAuth(pb: PocketBase): Promise<boolean> {
 export async function clearStoredAuth(): Promise<void> {
 	await chrome.storage.local.remove(STORAGE_KEY);
 }
+
+export { pb };

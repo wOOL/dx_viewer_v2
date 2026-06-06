@@ -3,52 +3,44 @@
 	"version": "0.0.1",
 	"private": true,
 	"type": "module",
-	"svelte": "./src/index.ts",
+	"description": "three.js-stack 3D imaging compute: CBCT volume parsing (NIfTI/NRRD), remeshing, measurements, FDI labelling, seg gating (extracted from the dx-viewer app; UI components stay app-side).",
 	"types": "./src/index.ts",
 	"exports": {
 		".": {
 			"types": "./src/index.ts",
-			"svelte": "./src/index.ts",
 			"default": "./src/index.ts"
 		},
-		"./types": {
-			"types": "./src/types/index.ts",
-			"default": "./src/types/index.ts"
-		},
-		"./loaders": {
-			"types": "./src/loaders/index.ts",
-			"default": "./src/loaders/index.ts"
-		},
-		"./parsers": {
-			"types": "./src/parsers/index.ts",
-			"default": "./src/parsers/index.ts"
-		},
-		"./session": {
-			"types": "./src/session/index.ts",
-			"default": "./src/session/index.ts"
-		},
-		"./labels": {
-			"types": "./src/labels/index.ts",
-			"default": "./src/labels/index.ts"
-		},
-		"./svelte": {
-			"types": "./src/svelte/use-3d-session.svelte.ts",
-			"svelte": "./src/svelte/use-3d-session.svelte.ts",
-			"default": "./src/svelte/use-3d-session.svelte.ts"
+		"./volumeLoader": "./src/volumeLoader.ts",
+		"./remeshCache": "./src/remeshCache.ts",
+		"./renderableModel": "./src/renderableModel.ts",
+		"./gltfStats": "./src/gltfStats.ts",
+		"./findingLabel": "./src/findingLabel.ts",
+		"./meshLabel": "./src/meshLabel.ts",
+		"./measure": "./src/measure.ts",
+		"./iosFdi": "./src/iosFdi.ts",
+		"./anatomyCounts": "./src/anatomyCounts.ts",
+		"./denoiseGuard": "./src/denoiseGuard.ts",
+		"./disposeObject3D": "./src/disposeObject3D.ts",
+		"./segGate": "./src/segGate.ts",
+		"./state": {
+			"types": "./src/state.svelte.ts",
+			"svelte": "./src/state.svelte.ts",
+			"default": "./src/state.svelte.ts"
 		}
 	},
 	"dependencies": {
 		"@be-certain/core": "workspace:*",
-		"@kitware/vtk.js": "^32.7.0",
-		"fflate": "^0.8.2",
-		"pako": "^2.1.0"
+		"nifti-reader-js": "^0.8.0",
+		"nrrd-js": "^0.2.1",
+		"pako": "^2.1.0",
+		"three": "^0.184.0"
 	},
 	"peerDependencies": {
 		"svelte": "^5.0.0"
 	},
 	"devDependencies": {
-		"@types/pako": "^2.0.3",
-		"svelte": "^5.0.0",
-		"typescript": "^5.7.0"
+		"@types/three": "^0.184.1",
+		"svelte": "^5.55.2",
+		"typescript": "^6.0.2"
 	}
 }

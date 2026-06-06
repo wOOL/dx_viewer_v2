@@ -1,18 +1,10 @@
-import { paraglide } from '@inlang/paraglide-vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 import tailwindcss from '@tailwindcss/vite';
 import { resolve } from 'path';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
-	plugins: [
-		tailwindcss(),
-		paraglide({
-			project: '../../packages/i18n/project.inlang',
-			outdir: './src/lib/paraglide'
-		}),
-		svelte()
-	],
+	plugins: [tailwindcss(), svelte()],
 	publicDir: 'static',
 	build: {
 		target: 'chrome108',
@@ -33,8 +25,7 @@ export default defineConfig({
 	},
 	resolve: {
 		alias: {
-			'@adapters': resolve(__dirname, 'src/adapters'),
-			'@be-certain/ui': resolve(__dirname, '../../packages/ui')
+			'@adapters': resolve(__dirname, 'src/adapters')
 		}
 	}
 });

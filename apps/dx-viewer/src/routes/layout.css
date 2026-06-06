@@ -1,85 +1,226 @@
-@import '@be-certain/ui/src/base.css';
-@plugin '@tailwindcss/typography';
+@import 'tailwindcss';
 @plugin '@tailwindcss/forms';
+@plugin '@tailwindcss/typography';
+@source '../**/*.{svelte,ts,js}';
+@source '../../src/**/*.{svelte,ts,js}';
 
-/* App-specific keyframes. Shared chrome lives in @be-certain/ui/base.css. */
-@keyframes pulse-subtle {
-	0%, 100% { opacity: 1; transform: scale(1); }
-	50% { opacity: 0.7; transform: scale(0.92); }
+/* ============================================================================
+   Dx Viewer — BeCertain brand design system  (see DESIGN_SYSTEM.md)
+   Brand palette (Pitch "Palette 1"): Prussian Blue #142D40, Saffron #F9C54E,
+   Silver #C1C1C2, White, Black. Navy-led light mode (navy buttons/text/active +
+   saffron accents), saffron-led dark mode (saffron on Prussian-blue surfaces).
+   Dual theme: tokens below are the DARK defaults (and the source Tailwind uses
+   to generate utilities). `:root[data-theme='light']` overrides the runtime
+   values, so every `bg-bg-1` / `text-fg-1` / `bg-primary` utility re-themes
+   automatically. No `dark:` variants are used anywhere.
+   ============================================================================ */
+
+@theme {
+	/* ---- Type ------------------------------------------------------------ */
+	--font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+	--font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', monospace;
+
+	/* ---- Raw brand ramp (Saffron) — theme-INDEPENDENT ----------------------
+	   The brand accent (#F9C54E = brand-400). Used for charts, gradients, the
+	   logo, and the dark imaging-canvas overlays/markers (saffron stays a light
+	   colour, so it's legible on the always-dark viewport in BOTH themes).
+	   Chrome interactive colour comes from the SEMANTIC tokens further down. */
+	--color-brand-50: #fef8ea;
+	--color-brand-100: #fceec7;
+	--color-brand-200: #fadf97;
+	--color-brand-300: #facd63;
+	--color-brand-400: #f9c54e;
+	--color-brand-500: #efb12d;
+	--color-brand-600: #d8961b;
+	--color-brand-700: #b07614;
+	--color-brand-800: #8d5e16;
+	--color-brand-900: #734c18;
+
+	/* ---- Clinical finding colours — theme-INDEPENDENT (drawn on dark imagery) */
+	--color-finding-caries-1: #fde047;
+	--color-finding-caries-2: #fbbf24;
+	--color-finding-caries-3: #f97316;
+	--color-finding-caries-4: #ef4444;
+	--color-finding-caries-5: #b91c1c;
+	--color-finding-bone-loss: #ec4899;
+	--color-finding-calculus: #06b6d4;
+	--color-finding-periapical: #a78bfa;
+	--color-finding-resorption: #f43f5e;
+	--color-finding-restoration: #34d399;
+	--color-finding-margin: #fb7185;
+	--color-finding-root: #ef4444;
+	--color-finding-overhang: #ec4899;
+
+	/* ---- Imaging viewport (X-ray / CBCT / 3D scene) ----------------------
+	   Stays near-black in BOTH themes (PACS convention + AI-overlay contrast). */
+	--color-canvas: #0b0e13;
+
+	/* ===========================  DARK (default)  ======================== */
+	/* Prussian-blue surfaces (the brand navy #142D40 anchors the card layer) */
+	--color-bg-0: #0c1722; /* app canvas / sidebar — deep Prussian */
+	--color-bg-1: #142a3d; /* cards, raised panels — ≈ brand Prussian blue */
+	--color-bg-2: #1a3346; /* insets, inputs, wells */
+	--color-bg-3: #213a50; /* elevated controls, chips, scrollbar thumb */
+	--color-border: rgba(170, 196, 222, 0.14);
+	--color-border-hover: rgba(170, 196, 222, 0.28);
+
+	/* Foreground / text (white → silver) */
+	--color-fg-0: #eef3f8; /* primary text */
+	--color-fg-1: #adbccb; /* secondary text */
+	--color-fg-2: #9aa8b7; /* muted — AA ≥4.5:1 on bg-0/1/2/3 (the lightest dark inset) */
+	--color-fg-3: #5b6a79; /* decorative only — never meaningful text */
+
+	/* Interactive — semantic (theme-swapped). DARK leads with Saffron: it pops on
+	   Prussian blue and is legible as text on dark; ink on a saffron fill is navy. */
+	--color-primary: #f9c54e; /* saffron — brand text on page + button fill */
+	--color-primary-hover: #fbd277;
+	--color-on-primary: #142d40; /* Prussian-blue ink on a saffron fill (AA ~9:1) */
+	--color-primary-tint: rgba(249, 197, 78, 0.15); /* active nav / badge bg */
+	--color-accent: #f9c54e; /* saffron highlight — fill (ink = on-accent) */
+	--color-on-accent: #142d40;
+	--color-ring: #f9c54e; /* focus ring */
+
+	/* Semantic state TEXT (theme-swapped); dots/blobs use the raw ramps */
+	--color-success: #34d399;
+	--color-warning: #fbbf24;
+	--color-danger: #f87171;
+	--color-on-danger: #2a0a0a;
+
+	/* ---- Elevation / shape ---------------------------------------------- */
+	--shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 6px 20px -6px rgba(0, 0, 0, 0.45);
+	--shadow-pop: 0 8px 30px -6px rgba(0, 0, 0, 0.6);
+	--radius-card: 1rem;
+	--radius-control: 0.625rem;
+
+	/* Slightly snappier default easing for motion */
+	--ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/*
- * Print stylesheet — drives the "Export PDF" button in the 2D viewer.
- * Hide all app chrome and surface only the .print-page block (rendered by
- * Viewer2D), so the user gets a clean report + annotated X-ray when they
- * "Save as PDF" from the browser's print dialog.
- */
-@media print {
-	@page {
-		size: A4;
-		margin: 16mm;
+/* Make the dark values explicit too, so an inherited [data-theme] always wins
+   deterministically over the bare @theme :root block. */
+:root,
+:root[data-theme='dark'] {
+	color-scheme: dark;
+}
+
+/* ===============================  LIGHT  ============================== */
+:root[data-theme='light'] {
+	color-scheme: light;
+
+	--color-bg-0: #f3f6f9; /* page canvas */
+	--color-bg-1: #ffffff; /* cards (raised, brighter than page) */
+	--color-bg-2: #e9eef4; /* insets, inputs, wells */
+	--color-bg-3: #dbe3eb; /* elevated controls, chips, scrollbar thumb */
+	--color-border: rgba(20, 45, 64, 0.12);
+	--color-border-hover: rgba(20, 45, 64, 0.24);
+
+	--color-fg-0: #142d40; /* primary text — brand Prussian blue */
+	--color-fg-1: #3a4d5f; /* secondary text */
+	--color-fg-2: #5c6c7c; /* muted — AA ≥4.5:1 on bg-0 (#f3f6f9) AND on white cards */
+	--color-fg-3: #97a5b3; /* decorative only */
+
+	/* LIGHT leads with Prussian navy (AA-bulletproof as text AND as a white-text
+	   button fill); saffron is the accent (highlights/charts/logo), used as a FILL
+	   with navy ink — never as text on white (it can't clear contrast there). */
+	--color-primary: #142d40; /* Prussian blue */
+	--color-primary-hover: #20415a;
+	--color-on-primary: #ffffff;
+	--color-primary-tint: rgba(20, 45, 64, 0.1);
+	--color-accent: #f9c54e; /* saffron highlight — fill (ink = on-accent) */
+	--color-on-accent: #142d40;
+	--color-ring: #142d40;
+
+	/* Darker than the 600/700 shades so `text-{state}` clears AA ≥4.5:1 even on its
+	   own faint `/10–/15` tinted badge background (not just on white). */
+	--color-success: #065f46;
+	--color-warning: #92400e;
+	--color-danger: #b91c1c;
+	--color-on-danger: #ffffff;
+
+	--shadow-card: 0 1px 2px rgba(15, 23, 42, 0.06), 0 10px 28px -10px rgba(15, 23, 42, 0.16);
+	--shadow-pop: 0 12px 40px -8px rgba(15, 23, 42, 0.22);
+}
+
+/* ============================== Base ================================= */
+html,
+body {
+	background: var(--color-bg-0);
+	color: var(--color-fg-0);
+	font-family: var(--font-sans);
+	height: 100%;
+	margin: 0;
+	overflow: hidden;
+}
+
+* {
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+	background: var(--color-primary-tint);
+	color: var(--color-fg-0);
+}
+
+/* Scrollbars — theme-aware via tokens */
+::-webkit-scrollbar {
+	width: 10px;
+	height: 10px;
+}
+::-webkit-scrollbar-track {
+	background: transparent;
+}
+::-webkit-scrollbar-thumb {
+	background: var(--color-bg-3);
+	border-radius: 6px;
+	border: 2px solid transparent;
+	background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+	background: var(--color-border-hover);
+	background-clip: padding-box;
+}
+
+/* Autofill — paint with theme tokens (was hard-coded white-on-dark) */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+	-webkit-text-fill-color: var(--color-fg-0);
+	-webkit-box-shadow: 0 0 0 1000px var(--color-bg-2) inset;
+	caret-color: var(--color-fg-0);
+	transition: background-color 5000s ease-in-out 0s;
+}
+
+.spinner {
+	width: 1em;
+	height: 1em;
+	border: 2px solid currentColor;
+	border-bottom-color: transparent;
+	border-radius: 50%;
+	display: inline-block;
+	animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+	to {
+		transform: rotate(360deg);
 	}
-	html, body {
-		background: #fff !important;
-		color: #111 !important;
-	}
-	/* Everything that's not the print page is hidden. */
-	body * {
-		visibility: hidden;
-	}
-	.print-only,
-	.print-only * {
-		visibility: visible;
-	}
-	.print-only {
-		display: block !important;
-		position: absolute;
-		inset: 0;
-		width: 100%;
-		background: #fff !important;
-		color: #111 !important;
-	}
-	.print-page {
-		padding: 0;
-	}
-	.print-page h1 {
-		font-size: 22pt;
-		font-weight: 600;
-		margin: 0 0 12pt;
-		color: #111;
-	}
-	.print-page .print-image-wrap {
-		text-align: center;
-		margin: 0 0 14pt;
-	}
-	.print-page .print-image-wrap img {
-		max-width: 100%;
-		max-height: 110mm;
-		object-fit: contain;
-		border: 1px solid #ddd;
-	}
-	.print-page .print-report {
-		font-size: 10.5pt;
-		line-height: 1.45;
-		color: #111;
-	}
-	/* Re-tone MarkdownReport's dark colours for print. */
-	.print-page .print-report :global(h1),
-	.print-page .print-report :global(h2),
-	.print-page .print-report :global(h3),
-	.print-page .print-report :global(h4) {
-		color: #111 !important;
-		page-break-after: avoid;
-	}
-	.print-page .print-report :global(p),
-	.print-page .print-report :global(li) {
-		color: #222 !important;
-	}
-	.print-page .print-report :global(strong) {
-		color: #000 !important;
-	}
-	/* Prevent orphaned headings. */
-	h1, h2, h3, h4 {
-		page-break-after: avoid;
+}
+
+/* ============================  Reduced motion  =======================
+   Respect the OS "reduce motion" setting (WCAG 2.3.3): collapse every
+   animation/transition to a near-instant duration and stop infinite
+   loops (the spinners) after one cycle. Near-zero rather than 0 so any
+   `transitionend`/`animationend` listeners still fire. The themed-autofill
+   background does NOT rely on its 5000s transition (the inset box-shadow
+   paints it), so neutralising the duration here is cosmetically safe. */
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+		scroll-behavior: auto !important;
 	}
 }

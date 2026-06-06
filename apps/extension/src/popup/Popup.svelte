@@ -1,7 +1,11 @@
 <script lang="ts">
-	import * as m from '../lib/paraglide/messages.js';
-	import type { AvailableLanguageTag } from '../lib/paraglide/runtime.js';
-	import { availableLanguageTags, languageTag, setLanguageTag } from '../lib/paraglide/runtime.js';
+	import * as m from '../lib/messages';
+	import {
+		type AvailableLanguageTag,
+		availableLanguageTags,
+		languageTag,
+		setLanguageTag
+	} from '../lib/messages';
 
 	const languageLabels: Record<AvailableLanguageTag, string> = {
 		en: 'English',

@@ -1,13 +1,13 @@
-import { findXRay, getInference } from '@be-certain/core/api';
+import { findXray, runInference } from '@be-certain/core/ai';
 import { resolveErrorMessage } from '@be-certain/core/errors';
 import { logger } from '@be-certain/core/logger';
-import { DISEASE_LABELS, type AnalysisResponse, type DiseaseLabel, type SiteAdapter } from '@be-certain/core/types';
-import { addBase64Metadata, extractXRayRegion } from '@be-certain/core/utils';
+import { diseaseById } from '@be-certain/core/constants';
+import type { InferenceResponse, SiteAdapter } from '@be-certain/core/types';
+import { addBase64Metadata, dataUrlToBase64, extractXRayRegion } from '@be-certain/core/image';
 import { getAdapterForUrl } from '../adapters';
-import * as m from '../lib/paraglide/messages.js';
-import type { AvailableLanguageTag } from '../lib/paraglide/runtime.js';
-import { setLanguageTag } from '../lib/paraglide/runtime.js';
-import { createExtensionPBClient, restoreAuth } from '../lib/pocketbase';
+import * as m from '../lib/messages';
+import { type AvailableLanguageTag, setLanguageTag } from '../lib/messages';
+import { initExtensionAuthPersistence, restoreAuth, pb } from '../lib/pocketbase';
 
 if (import.meta.env.VITE_DEBUG === 'true') logger.enable('debug');
 
@@ -32,11 +32,13 @@ chrome.storage.onChanged.addListener((changes, area) => {
 // PocketBase client
 // ---------------------------------------------------------------------------
 
-const pb = createExtensionPBClient(import.meta.env.VITE_POCKETBASE_URL, import.meta.env.VITE_SITE_KEY);
+// The shared core PB singleton reads VITE_PB_URL (falls back to prod). Wire its
+// auth persistence to chrome.storage.local for the service-worker environment.
+initExtensionAuthPersistence();
 
 async function ensureAuth(): Promise<boolean> {
 	if (pb.authStore.isValid) return true;
-	return restoreAuth(pb);
+	return restoreAuth();
 }
 
 // ---------------------------------------------------------------------------
@@ -45,7 +47,7 @@ async function ensureAuth(): Promise<boolean> {
 
 interface TabState {
 	adapter: SiteAdapter;
-	analysis: AnalysisResponse;
+	analysis: InferenceResponse;
 	findingsCount: number;
 }
 
@@ -256,8 +258,8 @@ chrome.action.onClicked.addListener(async (tab) => {
 		const dataUrl = await chrome.tabs.captureVisibleTab({ format: 'png' });
 		stop();
 
-		// Find X-ray region
-		const xrayResult = await findXRay(pb, dataUrl);
+		// Find X-ray region (core's ai helpers use the shared singleton's token)
+		const xrayResult = await findXray(dataUrlToBase64(dataUrl));
 		if (!xrayResult.extra.xrayfound || !xrayResult.result) {
 			await setTabError(tabId, m.capture_no_xray_found());
 			return;
@@ -266,7 +268,18 @@ chrome.action.onClicked.addListener(async (tab) => {
 		// Crop and run inference
 		log.debug('X-ray detected, cropping region');
 		const croppedDataUrl = await extractXRayRegion(dataUrl, xrayResult.result, xrayResult.extra);
-		const analysis = await getInference(pb, croppedDataUrl);
+		const analysis = await runInference({
+			image_data: dataUrlToBase64(croppedDataUrl),
+			// Mirrors the web app's one-click meta (QUICK_INFERENCE_META) so the
+			// extension's overlay matches what the app would produce.
+			meta_data: {
+				ensure_dim: true,
+				disease_segment: true,
+				anatomy_meta_data: { conf_thres: 0.3 },
+				number_meta_data: { conf_thres: 0.1, fdi_number: false },
+				disease_meta_data: { conf_thres: 0.1 }
+			}
+		});
 
 		// Extract findings count
 		const diseases = analysis.extra.disease_result.result;
@@ -324,7 +337,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 		// Build a JSON payload with findings and report
 		const diseases = state.analysis.extra.disease_result.result;
 		const findings = diseases.bboxes.map((bbox, i) => ({
-			disease: DISEASE_LABELS[diseases.labels[i] as DiseaseLabel] ?? 'Unknown',
+			disease: diseaseById(diseases.labels[i] ?? -1).name,
 			confidence: diseases.scores[i],
 			bbox
 		}));

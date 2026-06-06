@@ -2,18 +2,38 @@
 <html lang="en">
 	<head>
 		<meta charset="utf-8" />
-		<link rel="icon" href="%sveltekit.assets%/favicon.png" />
+		<!-- Favicon link is injected from +layout.svelte as a Vite-hashed, CF-cache-busting
+		     URL (see the faviconUrl import there). Do NOT add a sveltekit head placeholder
+		     token in this comment — it collides with the real one below. -->
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="text-scale" content="scale" />
+		<script>
+			// No-FOUC theme + lang: resolve before first paint from saved prefs,
+			// falling back to the OS colour-scheme / browser language.
+			(function () {
+				try {
+					var t = localStorage.getItem('dxv:theme');
+					if (t !== 'light' && t !== 'dark') {
+						t = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+					}
+					document.documentElement.dataset.theme = t;
+					var l = localStorage.getItem('dxv:lang');
+					if (l) document.documentElement.lang = l;
+				} catch (e) {
+					document.documentElement.dataset.theme = 'dark';
+				}
+			})();
+		</script>
 		<link rel="preconnect" href="https://fonts.googleapis.com" />
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 		<link
-			href="https://fonts.googleapis.com/css2?family=Geist:wght@300..700&family=Geist+Mono:wght@400..600&family=Instrument+Serif:ital@0;1&display=swap"
+			href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,500&family=JetBrains+Mono:wght@400;500&display=swap"
 			rel="stylesheet"
 		/>
-		<title>Dx Viewer</title>
+		<title>Dx Viewer - BeCertain</title>
 		%sveltekit.head%
 	</head>
-	<body data-sveltekit-preload-data="hover" class="bg-background text-foreground">
+	<body data-sveltekit-preload-data="hover" class="bg-bg-0 text-fg-0">
 		<div style="display: contents">%sveltekit.body%</div>
 	</body>
 </html>
