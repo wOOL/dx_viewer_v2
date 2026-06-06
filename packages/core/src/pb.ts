@@ -14,7 +14,12 @@ import { safeNextPath } from './url';
 
 // Configurable for staging/local backends; falls back to prod so a plain
 // `vite dev`/`vite build` without env vars behaves exactly as before.
-const PB_URL = import.meta.env.VITE_PB_URL || 'https://pbapi.becertain.ai';
+// Trailing slashes are stripped: every call site joins `${PB_URL}${path}` with a
+// leading-slash path, and a double slash makes the server 301 — which a CORS
+// preflight is forbidden from following (this exact bug shipped once via a
+// trailing slash in the CI env value; the SDK normalizes its own base URL, so
+// only the raw apiFetch paths broke).
+const PB_URL = (import.meta.env.VITE_PB_URL || 'https://pbapi.becertain.ai').replace(/\/+$/, '');
 
 export const pb = new PocketBase(PB_URL);
 
